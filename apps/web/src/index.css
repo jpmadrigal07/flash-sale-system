@@ -1,0 +1,58 @@
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    sans-serif;
+  line-height: 1.5;
+  color: #111;
+  background: #f6f6f6;
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  max-width: 32rem;
+  margin: 3rem auto;
+  padding: 1.5rem;
+  background: #fff;
+  border: 1px solid #ddd;
+}
+
+.sale-status,
+.user-identifier-input,
+.buy-button,
+.purchase-feedback {
+  display: block;
+  margin: 0.75rem 0;
+}
+
+.user-identifier-input input {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.5rem;
+  box-sizing: border-box;
+}
+
+.buy-button {
+  padding: 0.55rem 1rem;
+}
+
+.buy-button:disabled {
+  opacity: 0.6;
+}
+
+.purchase-feedback.success {
+  color: #157347;
+}
+
+.purchase-feedback.error {
+  color: #b02a37;
+}
+
+.purchase-feedback.neutral {
+  color: #555;
+}
