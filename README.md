@@ -13,24 +13,35 @@ a single React screen that polls sale status and submits purchases.
 
 - Node.js 22+
 - npm 10+
-- An [Upstash](https://upstash.com/) Redis database (REST URL + token)
+- Redis at `localhost:6379`, or an [Upstash](https://upstash.com/) database
 
 ## Setup
-
-Copy `.env.example` to `.env` and fill in your Upstash REST credentials:
 
 ```bash
 cp .env.example .env
 ```
+
+`.env.example` points at `redis://localhost:6379`. Redis must be running locally,
+or switch to Upstash next.
+
+### Upstash (optional)
+
+Create a Redis database in the [Upstash console](https://console.upstash.com/).
+Copy the **REST URL** (`https://….upstash.io`) and **REST token**. Do not paste
+the Redis / `rediss://` URL into those two fields.
+
+In `.env`, comment out `REDIS_URL` — if it is set, it wins — and uncomment:
 
 ```
 UPSTASH_REDIS_REST_URL=https://your-db.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-token
 ```
 
-Those two values are what the Upstash console shows. The API turns them into a
-`rediss://` connection so the purchase Lua script still runs atomically on
-Redis — we do not use the REST HTTP API on the hot path.
+The API maps that pair to `rediss://` so the purchase Lua script still runs as
+one atomic Redis call. It does not use Upstash's REST HTTP API.
+
+You can instead paste Upstash's Redis TLS URL into `REDIS_URL`
+(`rediss://default:…@….upstash.io:6379`) and leave the REST pair unset.
 
 ```bash
 npm install
@@ -48,10 +59,14 @@ npm run start
 ```
 
 That builds if needed, then starts the compiled API (`node dist/index.js`) and
-serves the Vite production bundle (`vite preview`) on the same ports. You still
-need Upstash credentials in `.env`.
+serves the Vite production bundle (`vite preview`) on the same ports. Redis
+must still be reachable (local or Upstash via `.env`).
 
-Do not commit `.env`. If `REDIS_URL` is set, it wins over the Upstash pair.
+Do not commit `.env`.
+
+`npm test` and `npm run stress` delete `sale:config`, `sale:stock`, and
+`sale:purchasers` — the same keys the running app uses. Do not run them
+against a sale you want to keep; stop the dev server first, or expect a reset.
 
 Set `RESEED_ON_BOOT=false` if a restart must not reset a sale in progress.
 
@@ -64,7 +79,7 @@ Set `RESEED_ON_BOOT=false` if a restart must not reset a sale in progress.
 | API + web (production)   | `npm run start`                        |
 | API only (dev)           | `npm run dev -w @flash-sale/api`       |
 | Web only (dev)           | `npm run dev -w @flash-sale/web`       |
-| Unit + integration tests | `npm test` (uses Upstash from `.env`)  |
+| Unit + integration tests | `npm test` (uses Redis from `.env`)    |
 | Stress test              | `npm run stress` (API must be running) |
 | Lint                     | `npm run lint`                         |
 | Format check             | `npm run format:check`                 |
@@ -125,16 +140,15 @@ validation plus faster serialization on the hot path. Nest would be a
 module-and-decorator framework for three endpoints. Native `http` would
 spend the same afternoon on body parsing and CORS.
 
-**Redis as the only store, hosted on Upstash.** Stock and purchaser identity
-have to be mutated together under contention. A relational `SELECT` then
-`UPDATE` recreates the race Redis is there to close. Upstash is still Redis —
-the Lua script is the source of truth — with their replication instead of a
-local AOF file. We connect with ioredis over TLS (`rediss://`), not the REST
-SDK, so `EVALSHA` stays one Redis round trip. In production I would still
-write completed orders asynchronously to a relational store so order history
-survives independently of the cache tier and can be queried without touching
-the hot path. That write would happen _after_ the Lua script returns success,
-never in the decision path.
+**Redis as the only store.** Stock and purchaser identity have to be
+mutated together under contention. A relational `SELECT` then `UPDATE`
+recreates the race Redis is there to close. Local Redis (`REDIS_URL`) and
+Upstash are the same protocol: we connect with ioredis (`redis://` or
+`rediss://`), not the REST SDK, so `EVALSHA` stays one Redis round trip.
+In production I would still write completed orders asynchronously to a
+relational store so order history survives independently of the cache tier
+and can be queried without touching the hot path. That write would happen
+_after_ the Lua script returns success, never in the decision path.
 
 **Server-supplied timestamp, not `redis.call('TIME')`.** The script
 receives `now` from the API. Tests can freeze the clock by seeding a
@@ -212,7 +226,7 @@ script body on every request.
 ## Stress test: before and after
 
 ```bash
-npm run dev -w @flash-sale/api   # in another terminal; uses Upstash from .env
+npm run dev -w @flash-sale/api   # in another terminal; uses Redis from .env
 npm run stress
 ```
 
@@ -223,9 +237,10 @@ would be sequential and would prove nothing.
 
 ### Before: naive read-check-write
 
-The same 5,000-attempt, 100-stock, 20%-duplicate pattern, with the
-purchase decision done in process (read stock, yield, decrement, record
-the user):
+Illustrative — there is no script in this repo that produces these numbers.
+They show the lost-update pattern if the purchase decision ran in process
+(read stock, yield, decrement, record the user) under the same
+5,000-attempt, 100-stock, 20%-duplicate mix:
 
 |                   |           |
 | ----------------- | --------- |
