@@ -169,10 +169,18 @@ share HTTP 409. The machine-readable `error` field distinguishes them.
 That is deliberate: both are conflict-with-current-state, and the client
 already has to branch on `error`.
 
-**Turborepo and a shared package.** Two apps and one enum. Duplicating
-`PurchaseCode` on each side is how the HTTP contract drifts. The shared
-package is types and codes only — no runtime logic — and both apps
-depend on it through the workspace.
+**Turborepo and a shared package, not one folder.** The API and the UI
+are separate apps that must agree on `PurchaseCode` and the JSON shapes.
+Duplicating those on each side is how the HTTP contract drifts. The
+shared package is types and codes only — no runtime logic — and both
+apps depend on it through npm workspaces.
+
+Workspaces alone link the packages; they do not order tasks. Turbo's
+graph builds `@flash-sale/shared` before the API and web (`dependsOn:
+["^build"]`), and `npm run dev` / `npm run start` run both apps with
+one command. A single package would mix Fastify, Vite, and Redis Lua
+in one `src/`. Nx would be a heavier orchestration layer for three
+packages.
 
 **TanStack Query, with `retry: 0` on the purchase mutation.** Status
 polling via `refetchInterval` avoids a hand-rolled `setInterval` that
@@ -315,7 +323,3 @@ Parameters: `STRESS_CONCURRENCY`, `STRESS_STOCK`,
   process already serialize at Redis and still finished in under two
   seconds. A queue would add latency before it added safety. I would
   add one when p99 purchase latency climbed, not before.
-
-## License
-
-MIT
