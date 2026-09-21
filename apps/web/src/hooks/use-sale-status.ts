@@ -5,6 +5,7 @@ export function useSaleStatus() {
   return useQuery({
     queryKey: ['sale-status'],
     queryFn: fetchSaleStatus,
+    retry: 0,
     refetchInterval: (query) => (query.state.data?.status === 'ended' ? false : 2000),
   });
 }

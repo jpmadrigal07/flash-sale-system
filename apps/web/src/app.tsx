@@ -40,12 +40,18 @@ export function App() {
   const remainingStock = statusQuery.data?.remainingStock ?? 0;
   const resultForUser = purchase.variables === userId ? purchase.data : undefined;
   const errorForUser = purchase.variables === userId ? purchase.error : null;
-  const purchasedThisSession = resultForUser?.success === true;
+  const securedThisSession = purchase.securedUserId === userId;
+  const purchasedThisSession = securedThisSession || resultForUser?.success === true;
   const alreadyPurchased = hasPurchasedQuery.data?.purchased === true || purchasedThisSession;
   const saleInactive = status !== 'active';
   const soldOut = remainingStock <= 0;
   const disabled =
     userId.length === 0 || saleInactive || soldOut || purchase.isPending || alreadyPurchased;
+  const feedbackResult = securedThisSession
+    ? resultForUser?.success === true
+      ? resultForUser
+      : { success: true as const, userId, remainingStock }
+    : resultForUser;
 
   return (
     <main className="app">
@@ -64,9 +70,9 @@ export function App() {
         onClick={() => purchase.mutate(userId)}
       />
       <PurchaseFeedback
-        result={resultForUser}
+        result={feedbackResult}
         error={errorForUser}
-        alreadyPurchased={hasPurchasedQuery.data?.purchased === true && !resultForUser}
+        alreadyPurchased={hasPurchasedQuery.data?.purchased === true && !feedbackResult}
         saleStatus={status}
         remainingStock={remainingStock}
       />

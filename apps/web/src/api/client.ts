@@ -5,7 +5,9 @@ async function readJson<T>(response: Response): Promise<T> {
 }
 
 export async function fetchSaleStatus(): Promise<SaleStatusResponse> {
-  const response = await fetch('/api/sale/status');
+  const response = await fetch('/api/sale/status', {
+    signal: AbortSignal.timeout(5_000),
+  });
   if (!response.ok) {
     throw new Error('Failed to load sale status');
   }

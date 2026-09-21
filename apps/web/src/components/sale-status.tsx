@@ -51,22 +51,27 @@ export function SaleStatus({ data, dataUpdatedAt, isLoading, error }: SaleStatus
     return 'Sale has ended';
   }, [data, dataUpdatedAt, now]);
 
-  if (isLoading) {
-    return <section className="sale-status">Loading sale status…</section>;
+  if (data) {
+    return (
+      <section className="sale-status">
+        <p>
+          Status: <strong>{data.status}</strong>
+        </p>
+        <p>
+          Remaining stock: <strong>{data.remainingStock}</strong> / {data.totalStock}
+        </p>
+        <p>{countdown}</p>
+      </section>
+    );
   }
-  if (error || !data) {
+
+  if (error) {
     return <section className="sale-status">Unable to load sale status.</section>;
   }
 
-  return (
-    <section className="sale-status">
-      <p>
-        Status: <strong>{data.status}</strong>
-      </p>
-      <p>
-        Remaining stock: <strong>{data.remainingStock}</strong> / {data.totalStock}
-      </p>
-      <p>{countdown}</p>
-    </section>
-  );
+  if (isLoading) {
+    return <section className="sale-status">Loading sale status…</section>;
+  }
+
+  return <section className="sale-status">Unable to load sale status.</section>;
 }
